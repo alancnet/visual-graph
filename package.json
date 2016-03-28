@@ -1,0 +1,25 @@
+{
+  "name": "visual-graph",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "browserify": "^13.0.0",
+    "gulp": "^3.9.1",
+    "gulp-auto-reload": "^0.1.0",
+    "gulp-server-livereload": "^1.7.3",
+    "gulp-watchify": "^0.5.0",
+    "watchify": "^3.7.0"
+  },
+  "dependencies": {
+    "matter-js": "^0.9.1",
+    "michaelangelo": "^0.1.2",
+    "raphael": "^2.1.4",
+    "tinkergraph-js": "github:jbmusso/tinkergraph-js"
+  }
+}
