@@ -14,6 +14,7 @@ const Constraint = matter.Constraint;
 const Composite = matter.Composite;
 const Vector = matter.Vector;
 const Bounds = matter.Bounds;
+const util = require('./util');
 function center(bounds) {
   return {
     x: bounds.max.x / 2 + bounds.min.x / 2,
@@ -64,15 +65,8 @@ class MindMap {
       this.explosion();
     });
   }
-  readArguments() {
-    const ret = {};
-    for (var i = 0; i < arguments.length; i += 2) {
-      ret[arguments[i]] = arguments[i + 1];
-    }
-    return ret;
-  }
   addVertex() {
-    const props = this.readArguments.apply(this, arguments);
+    const props = util.readArguments.apply(this, arguments);
     console.log(props);
     if (!props.hasOwnProperty(T.id)) throw new Error("T.id required for vertex.");
     if (this.vertices.hasOwnProperty(props[T.id])) throw new Error(`T.id (${props[T.id]}) is not unique.`);
@@ -93,14 +87,17 @@ class MindMap {
     this.vertices[props[T.id]] = shape;
     World.add(this.engine.world, [shape]);
     shape.addEdge = (verb, target) => {
-      const edgeProps = this.readArguments.apply(this, arguments);
+      const edgeProps = util.readArguments.apply(this, arguments);
       const edge = Constraint.create({
         bodyA: shape,
         bodyB: target,
         label: verb,
         pointA: undefined,
         pointB: undefined,
-        length: 100
+        length: 100,
+        render: {
+          visible: false
+        }
       });
       edge.stiffness = 0.0002
       edge.props = edgeProps;
@@ -109,29 +106,6 @@ class MindMap {
       return edge;
     }
     return shape;
-  }
-
-  setFontFillSize(context, font, size, text) {
-    const loop = (lower, upper, i) => {
-      const pivot = upper / 2 + lower / 2;
-      const getWidth = () => {
-        context.font = `${pivot}px ${font}`;
-        const textSize = context.measureText(text);
-        return textSize.width;
-      }
-      if (i == 10) {
-        return { width: getWidth(), height: pivot };
-      } else {
-        if (pivot > size.height || getWidth() > size.width) {
-          // Size is too big
-          return loop(lower, pivot, i + 1);
-        } else {
-          // Size is too small
-          return loop(pivot, upper, i + 1);
-        }
-      }
-    }
-    return loop(4, 500, 0);
   }
 
   normalize() {
@@ -194,7 +168,7 @@ class MindMap {
             width: body.bounds.max.x - body.bounds.min.x,
             height: body.bounds.max.y - body.bounds.min.y
           };
-          const textSize = this.setFontFillSize(c, "Arial", size, body.name);
+          const textSize = util.setFontFillSize(c, "Arial", size, body.name);
           //c.font = "12px Arial";
           c.fillStyle = 'rgba(255,255,255,0.5)';
           c.fillText(
