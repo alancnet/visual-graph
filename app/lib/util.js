@@ -9281,19 +9281,64 @@ function setFontFillSize(context, font, size, text) {
   return loop(4, 500, 0);
 }
 
-function drawLineBetweenVertices(v1, v2) {
-  const fullVector = Vector.sub(v2.position, v1.position)
-
+function drawLineBetweenBodies(context, body1, body2) {
+  const seg = segmentBetweenShapes(body1.position, body1.vertices, body2.position, body2.vertices);
+  context.beginPath();
+  context.moveTo(seg.a.x, seg.a.y);
+  context.lineTo(seg.b.x, seg.b.y);
+  context.stroke();
 }
 
+/**
+  Determines the point along the outline of a body which intersects a line between
+  point and vector. The result is more likely to be a new vector between vectors in shape.
+  If no point is found (for instance if point is outside of shape, and the line between
+  point and vector do not cross shape), then point is returned.
+  @param point {Vector} - The point within the body from which a line would be drawn.
+  @param shape {Vector[]} - List of vertices in connect-the-dot order.
+  @param vector {Vector} - The point outside the body to which a line would be drawn.
+  @returns {Vector}
+  */
+function pointOnShapeClosestToVector(point, shape, vector) {
+  return shapeToSegments(shape)
+    .map(seg => intersect({a: point, b: vector }, seg))
+    .filter(x => x) // Not null
+    [0] || point // Return the intersection, or the original point if none found.
+}
+
+/**
+  Returns a line between two bodies, that does not overlap either.
+  @param point1 {Vector} - Point within shape1 from which a line would be drawn.
+  @param shape1 {Vector[]} - List of vertices in connect-the-dot order.
+  @param point2 {Vector} - Point within shape2 to which a line would be drawn.
+  @param shape2 {vector[]} - List of vertices in connect-the-dot order.
+*/
+function segmentBetweenShapes(point1, shape1, point2, shape2) {
+  return {
+    a: pointOnShapeClosestToVector(point1, shape1, point2),
+    b: pointOnShapeClosestToVector(point2, shape2, point1)
+  };
+}
+
+/**
+Determines the point at which two segments intersect, if they do.
+Adapted from {@link http://ejohn.org/apps/processing.js/examples/custom/intersect.html}
+@param a {Segment}
+@param b {Segment}
+@returns {?Vector} - null if the a and b do not intersect, or the point where
+  they do otherwise.
+*/
 function intersect(a, b) {
   const x1 = a.a.x, y1 = a.a.y, x2 = a.b.x, y2 = a.b.y,
         x3 = b.a.x, y3 = b.a.y, x4 = b.b.x, y4 = b.b.y;
 
+function same_sign(n1, n2) {
+  return (n1 / Math.abs(n1)) == (n2 / Math.abs(n2));
+}
   var a1, a2, b1, b2, c1, c2;
   var r1, r2 , r3, r4;
   var denom, offset, num;
-
+  var x, y;
   // Compute a1, b1, c1, where line joining points 1 and 2
   // is "a1 x + b1 y + c1 = 0".
   a1 = y2 - y1;
@@ -9358,12 +9403,27 @@ function intersect(a, b) {
   else {
     y = (num + offset) / denom;
   }
-
-  // lines_intersect
-  return DO_INTERSECT;
-
+  return { x, y };
 }
+
+/**
+  Turns a list of vertices into a list of line segments between each vertex.
+  @param v {Vector[]} - List of vertices in connect-the-dot order.
+  @returns {Segment[]}
+*/
+function shapeToSegments(v) {
+  return v.map((x, i) => ({ a: x, b: v[(i + 1) % v.length ]}));
+  // return [
+  //   {a: {x: rect.x, y: rect.y}, b: {x: rect.x, y: rect.y + rect.height}},
+  //   {a: {x: rect.x, y: rect.y + rect.height}, b: {x: rect.x + rect.width, y: rect.y + rect.height}},
+  //   {a: {x: rect.x + rect.width, y: rect.y + rect.height}, b: {x: rect.x + rect.width, y: rect.y}},
+  //   {a: {x: rect.x + rect.width, y: rect.y}, b: {x: rect.x, y: rect.y}}
+  // ];
+}
+module.exports.drawLineBetweenBodies = drawLineBetweenBodies;
 module.exports.readArguments = readArguments;
 module.exports.setFontFillSize = setFontFillSize;
+module.exports.shapeToSegments = shapeToSegments;
+module.exports.segmentBetweenShapes = segmentBetweenShapes;
 
 },{"matter-js":28}]},{},[31]);

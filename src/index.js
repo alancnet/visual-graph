@@ -1,4 +1,5 @@
 'use strict';
+const _ = require('lodash');
 const matter = require('matter-js');
 window.matter = matter;
 
@@ -41,7 +42,8 @@ const T = {
 
 class MindMap {
   constructor(element) {
-    this.vertices = {};
+    this.vertices = [];
+    this.vertexMap = {};
     this.edges = [];
     this.element = element;
     this.engine = Engine.create(element);
@@ -62,6 +64,7 @@ class MindMap {
     Events.on(this.engine.render, 'afterRender', ev => {
       this.normalize();
       this.renderNames();
+      this.renderEdges();
       this.explosion();
     });
   }
@@ -69,7 +72,7 @@ class MindMap {
     const props = util.readArguments.apply(this, arguments);
     console.log(props);
     if (!props.hasOwnProperty(T.id)) throw new Error("T.id required for vertex.");
-    if (this.vertices.hasOwnProperty(props[T.id])) throw new Error(`T.id (${props[T.id]}) is not unique.`);
+    if (this.vertexMap.hasOwnProperty(props[T.id])) throw new Error(`T.id (${props[T.id]}) is not unique.`);
     const pos = center(this.engine.render.bounds);
     const shape = Bodies.rectangle(
       pos.x + Math.random(),
@@ -82,9 +85,11 @@ class MindMap {
         }
       }
     );
+    shape.shape = shape.vertices.map(v => Vector.sub(v, shape.position));
     shape.props = props;
     shape.edges = [];
-    this.vertices[props[T.id]] = shape;
+    this.vertexMap[props[T.id]] = shape;
+    this.vertices.push(shape);
     World.add(this.engine.world, [shape]);
     shape.addEdge = (verb, target) => {
       const edgeProps = util.readArguments.apply(this, arguments);
@@ -109,7 +114,16 @@ class MindMap {
   }
 
   normalize() {
-    this.engine.world.bodies.forEach(body => Body.setAngle(body, 0));
+    this.engine.world.bodies.forEach(body => {
+      //Body.setAngle(body, 0);
+      // Restore original shape
+      body.vertices = body.shape
+        .map(v =>
+          Vector.add(
+            v, body.position
+          )
+        );
+    });
   }
   updateBounds() {
     const outerBounds = Bounds.create(
@@ -132,10 +146,8 @@ class MindMap {
     })
   }
   explosion() {
-    for (var key in this.vertices) {
-      const vertex = this.vertices[key];
-      for (var otherKey in this.vertices) {
-        const other = this.vertices[otherKey];
+    this.vertices.forEach(vertex => {
+      this.vertices.forEach(other => {
         if (vertex != other) {
           let delta = Vector.sub(vertex.position, other.position);
           Body.applyForce(
@@ -148,9 +160,16 @@ class MindMap {
           );
           //console.log(Vector.normalise(delta))
         }
-      }
-    }
+      })
+    })
   };
+  renderEdges() {
+    this.vertices.forEach(vertex => {
+      vertex.edges.forEach(edge =>
+        util.drawLineBetweenBodies(this.engine.render.context, edge.bodyA, edge.bodyB)
+      );
+    })
+  }
   renderNames() {
       const engine = this.engine;
       const bodies = engine.world.bodies;
@@ -164,17 +183,14 @@ class MindMap {
 
           const body = bodies[i];
           body.name = body.props.name || "Unknown";
-          const size = {
-            width: body.bounds.max.x - body.bounds.min.x,
-            height: body.bounds.max.y - body.bounds.min.y
-          };
+          const bounds = Bounds.create(body.vertices);
+          const size = Vector.sub(bounds.max, bounds.min);
           const textSize = util.setFontFillSize(c, "Arial", size, body.name);
-          //c.font = "12px Arial";
           c.fillStyle = 'rgba(255,255,255,0.5)';
           c.fillText(
             body.name,
-            body.bounds.min.x + size.width / 2 - textSize.width / 2,
-            body.bounds.min.y + textSize.height / 2 + size.height / 2
+            bounds.min.x + size.x / 2 - textSize.width / 2,
+            bounds.min.y + textSize.height / 2 + size.y / 2
           );
       }
   }
