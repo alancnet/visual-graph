@@ -28,9 +28,11 @@ function readArguments() {
   @param context {CanvasRenderingContext2D}
   @param font {String}
   @param size {Vector}
+  @param minFontSize {Number}
+  @param maxFontSize {Number}
   @param text {String}
 */
-function setFontFillSize(context, font, size, text) {
+function setFontFillSize(context, font, size, minFontSize, maxFontSize, text) {
   const loop = (lower, upper, i) => {
     const pivot = upper / 2 + lower / 2;
     const getWidth = () => {
@@ -50,15 +52,17 @@ function setFontFillSize(context, font, size, text) {
       }
     }
   }
-  return loop(4, 500, 0);
+  return loop(minFontSize, maxFontSize, 0);
 }
 
 function drawLineBetweenBodies(context, body1, body2) {
   const seg = segmentBetweenShapes(body1.position, body1.vertices, body2.position, body2.vertices);
+  // TODO: Separate side-effects
   context.beginPath();
   context.moveTo(seg.a.x, seg.a.y);
   context.lineTo(seg.b.x, seg.b.y);
   context.stroke();
+  return seg;
 }
 
 /**
@@ -104,9 +108,9 @@ function intersect(a, b) {
   const x1 = a.a.x, y1 = a.a.y, x2 = a.b.x, y2 = a.b.y,
         x3 = b.a.x, y3 = b.a.y, x4 = b.b.x, y4 = b.b.y;
 
-function same_sign(n1, n2) {
-  return (n1 / Math.abs(n1)) == (n2 / Math.abs(n2));
-}
+  function same_sign(n1, n2) {
+    return (n1 / Math.abs(n1)) == (n2 / Math.abs(n2));
+  }
   var a1, a2, b1, b2, c1, c2;
   var r1, r2 , r3, r4;
   var denom, offset, num;
@@ -192,6 +196,16 @@ function shapeToSegments(v) {
   //   {a: {x: rect.x + rect.width, y: rect.y}, b: {x: rect.x, y: rect.y}}
   // ];
 }
+
+function fillShape(context, shape) {
+  context.beginPath();
+  const end = shape[shape.length - 1];
+  context.moveTo(end.x, end.y);
+  shape.forEach(point => context.lineTo(point.x, point.y));
+  context.fill();
+  context.stroke();
+}
+module.exports.fillShape = fillShape;
 module.exports.drawLineBetweenBodies = drawLineBetweenBodies;
 module.exports.readArguments = readArguments;
 module.exports.setFontFillSize = setFontFillSize;

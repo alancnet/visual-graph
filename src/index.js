@@ -14,6 +14,7 @@ const MouseConstraint = matter.MouseConstraint;
 const Constraint = matter.Constraint;
 const Composite = matter.Composite;
 const Vector = matter.Vector;
+const Vertices = matter.Vertices;
 const Bounds = matter.Bounds;
 const util = require('./util');
 function center(bounds) {
@@ -41,7 +42,18 @@ const T = {
 };
 
 class MindMap {
-  constructor(element) {
+  constructor(element, options) {
+    this.options = _.assign({
+      fontName: 'Arial',
+      minFontSize: 4,
+      maxFontSize: 500,
+      arrowShape: [ // Δ with origin at the top.
+        { x: 0, y: 0 },
+        { x: Math.sin(4/6*Math.PI*2), y: Math.cos(4/6*Math.PI*2) },
+        { x: Math.sin(5/6*Math.PI*2), y: Math.cos(5/6*Math.PI*2) }
+      ],
+      arrowSize: 7
+    }, options);
     this.vertices = [];
     this.vertexMap = {};
     this.edges = [];
@@ -67,6 +79,9 @@ class MindMap {
       this.renderEdges();
       this.explosion();
     });
+  }
+  option(elem, name) {
+    return (elem && elem.hasOwnProperty(name)) ? elem[name] : this.options[name];
   }
   addVertex() {
     const props = util.readArguments.apply(this, arguments);
@@ -165,34 +180,46 @@ class MindMap {
   };
   renderEdges() {
     this.vertices.forEach(vertex => {
-      vertex.edges.forEach(edge =>
-        util.drawLineBetweenBodies(this.engine.render.context, edge.bodyA, edge.bodyB)
+      vertex.edges.forEach(edge => {
+          const line = util.drawLineBetweenBodies(this.engine.render.context, edge.bodyA, edge.bodyB)
+          const angle = Vector.angle(line.a, line.b);
+          const arrow =
+            Vertices.translate(
+              Vertices.scale(
+                Vertices.rotate(_.cloneDeep(this.option(edge, 'arrowShape')), angle, {x: 0, y: 0}),
+                this.option(edge, 'arrowSize'),
+                this.option(edge, 'arrowSize'),
+                {x: 0, y: 0}
+              ),
+              line.b,
+              false
+            );
+          util.fillShape(this.engine.render.context, arrow);
+        }
       );
     })
   }
   renderNames() {
-      const engine = this.engine;
-      const bodies = engine.world.bodies;
-      const c = this.engine.render.context;
-      var i, j;
-
-      for (i = 0; i < bodies.length; i++) {
-          if (!bodies[i].render.visible) {
-              continue;
-          }
-
-          const body = bodies[i];
-          body.name = body.props.name || "Unknown";
-          const bounds = Bounds.create(body.vertices);
-          const size = Vector.sub(bounds.max, bounds.min);
-          const textSize = util.setFontFillSize(c, "Arial", size, body.name);
-          c.fillStyle = 'rgba(255,255,255,0.5)';
-          c.fillText(
-            body.name,
-            bounds.min.x + size.x / 2 - textSize.width / 2,
-            bounds.min.y + textSize.height / 2 + size.y / 2
-          );
-      }
+    const c = this.engine.render.context;
+    this.engine.world.bodies.filter(body => body.render.visible).forEach(body => {
+      const name = body.props.name || "Unknown";
+      const bounds = Bounds.create(body.vertices);
+      const size = Vector.sub(bounds.max, bounds.min);
+      const textSize = util.setFontFillSize(
+        c,
+        this.option(body, 'fontName'),
+        size,
+        this.option(body, 'minFontSize'),
+        this.option(body, 'maxFontSize'),
+        name
+      );
+      c.fillStyle = 'rgba(255,255,255,0.5)';
+      c.fillText(
+        name,
+        bounds.min.x + size.x / 2 - textSize.width / 2,
+        bounds.min.y + textSize.height / 2 + size.y / 2
+      );
+    })
   }
 
   run() {
