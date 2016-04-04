@@ -52,7 +52,9 @@ class MindMap {
         { x: Math.sin(4/6*Math.PI*2), y: Math.cos(4/6*Math.PI*2) },
         { x: Math.sin(5/6*Math.PI*2), y: Math.cos(5/6*Math.PI*2) }
       ],
-      arrowSize: 7
+      arrowSize: 7,
+      guide: 'clockwise',
+      edgeLength: 125
     }, options);
     this.vertices = [];
     this.vertexMap = {};
@@ -106,7 +108,8 @@ class MindMap {
     this.vertexMap[props[T.id]] = shape;
     this.vertices.push(shape);
     World.add(this.engine.world, [shape]);
-    shape.addEdge = (verb, target) => {
+    shape.addEdge = (verb, target, options) => {
+      options = options || {};
       const edgeProps = util.readArguments.apply(this, arguments);
       const edge = Constraint.create({
         bodyA: shape,
@@ -114,7 +117,7 @@ class MindMap {
         label: verb,
         pointA: undefined,
         pointB: undefined,
-        length: 100,
+        length: this.option(options, 'edgeLength'),
         render: {
           visible: false
         }
@@ -181,7 +184,12 @@ class MindMap {
   renderEdges() {
     this.vertices.forEach(vertex => {
       vertex.edges.forEach(edge => {
-          const line = util.drawLineBetweenBodies(this.engine.render.context, edge.bodyA, edge.bodyB)
+          const outgoing = vertex.edges.filter(e => e.bodyB === edge.bodyB);
+          const incoming = edge.bodyB.edges.filter(e => e.bodyB === vertex);
+          const ratio = (1 + outgoing.indexOf(edge)) / outgoing.length; // 0 -> 1
+          const line = (incoming.length > 0 || outgoing.length > 1) ?
+            util.drawClockwiseLineBetweenBodies(this.engine.render.context, edge.bodyA, edge.bodyB, ratio, ratio) :
+            util.drawLineBetweenBodies(this.engine.render.context, edge.bodyA, edge.bodyB)
           const angle = Vector.angle(line.a, line.b);
           const arrow =
             Vertices.translate(
@@ -239,11 +247,15 @@ document.addEventListener('DOMContentLoaded', () => {
   let ripple = graph.addVertex(T.label, "software", T.id, 5, "name", "ripple", "lang", "java");
   let peter = graph.addVertex(T.label, "person", T.id, 6, "name", "peter", "age", 35);
   marko.addEdge("knows", vadas, T.id, 7, "weight", 0.5);
+  vadas.addEdge("knows", marko, T.id, 13, "weight", 0.5);
+  vadas.addEdge("knows", marko, T.id, 14, "weight", 0.5);
+  vadas.addEdge("knows", marko, T.id, 15, "weight", 0.5);
   marko.addEdge("knows", josh, T.id, 8, "weight", 1.0);
   marko.addEdge("created", lop, T.id, 9, "weight", 0.4);
   josh.addEdge("created", ripple, T.id, 10, "weight", 1.0);
   josh.addEdge("created", lop, T.id, 11, "weight", 0.4);
+  josh.addEdge("created", lop, T.id, 16, "weight", 0.4);
   peter.addEdge("created", lop, T.id, 12, "weight", 0.2);
-
+  ripple.addEdge("knows", josh, T.id, 17, "weight", 0.3);
   graph.run();
 })

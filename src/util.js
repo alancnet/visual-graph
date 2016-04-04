@@ -65,6 +65,52 @@ function drawLineBetweenBodies(context, body1, body2) {
   return seg;
 }
 
+function drawClockwiseLineBetweenBodies(context, body1, body2, ratio1, ratio2) {
+  // Unit vector direction between bodies
+  const normal = Vector.normalise(Vector.sub(body2.position, body1.position));
+
+  const boundsA = Bounds.create(body1.vertices);
+  const boundsB = Bounds.create(body2.vertices);
+
+  const radiusA = Math.min(boundsA.max.x - boundsA.min.x, boundsA.max.y - boundsA.min.y) / 2;
+  const radiusB = Math.min(boundsB.max.x - boundsB.min.x, boundsB.max.y - boundsB.min.y) / 2;
+
+  const guideA = Vector.add(body1.position, Vector.mult(Vector.rotate(normal, Math.PI / 2), radiusA * ratio1));
+  const guideB = Vector.add(body2.position, Vector.mult(Vector.rotate(normal, Math.PI / 2), radiusB * ratio2));
+
+  // // Point far outside of each shape at 90 degree angle to normal used to determine intersection
+  // const rayVectorA = Vector.add(body1.position, Vector.mult(Vector.rotate(normal, Math.PI / 2), 100000));
+  // const rayVectorB = Vector.add(body2.position, Vector.mult(Vector.rotate(normal, Math.PI / 2), 100000));
+
+  // // Intersection of ray with shape
+  // const intersectA = pointOnShapeClosestToVector(body1.position, body1.vertices, rayVectorA);
+  // const intersectB = pointOnShapeClosestToVector(body2.position, body2.vertices, rayVectorB);
+
+  // // Partial vector from center of body to edge.
+  // const guideA = Vector.add(body1.position, Vector.mult(Vector.sub(intersectA, body1.position), ratio1))
+  // const guideB = Vector.add(body2.position, Vector.mult(Vector.sub(intersectB, body2.position), ratio2));
+
+  const seg = segmentBetweenShapes(guideA, body1.vertices, guideB, body2.vertices);
+  // TODO: Separate side-effects
+
+  context.beginPath();
+  context.moveTo(seg.a.x, seg.a.y);
+  context.lineTo(seg.b.x, seg.b.y);
+  context.stroke();
+
+  // context.beginPath();
+  // context.moveTo(body1.position.x, body1.position.y);
+  // context.lineTo(guideA.x, guideA.y);
+  // context.stroke();
+  //
+  // context.beginPath();
+  // context.moveTo(body2.position.x, body2.position.y);
+  // context.lineTo(guideB.x, guideB.y);
+  // context.stroke();
+
+  return seg;
+}
+
 /**
   Determines the point along the outline of a body which intersects a line between
   point and vector. The result is more likely to be a new vector between vectors in shape.
@@ -211,3 +257,4 @@ module.exports.readArguments = readArguments;
 module.exports.setFontFillSize = setFontFillSize;
 module.exports.shapeToSegments = shapeToSegments;
 module.exports.segmentBetweenShapes = segmentBetweenShapes;
+module.exports.drawClockwiseLineBetweenBodies = drawClockwiseLineBetweenBodies;

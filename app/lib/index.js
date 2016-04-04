@@ -25160,7 +25160,9 @@ class MindMap {
         { x: Math.sin(4/6*Math.PI*2), y: Math.cos(4/6*Math.PI*2) },
         { x: Math.sin(5/6*Math.PI*2), y: Math.cos(5/6*Math.PI*2) }
       ],
-      arrowSize: 7
+      arrowSize: 7,
+      guide: 'clockwise',
+      edgeLength: 125
     }, options);
     this.vertices = [];
     this.vertexMap = {};
@@ -25214,7 +25216,8 @@ class MindMap {
     this.vertexMap[props[T.id]] = shape;
     this.vertices.push(shape);
     World.add(this.engine.world, [shape]);
-    shape.addEdge = (verb, target) => {
+    shape.addEdge = (verb, target, options) => {
+      options = options || {};
       const edgeProps = util.readArguments.apply(this, arguments);
       const edge = Constraint.create({
         bodyA: shape,
@@ -25222,7 +25225,7 @@ class MindMap {
         label: verb,
         pointA: undefined,
         pointB: undefined,
-        length: 100,
+        length: this.option(options, 'edgeLength'),
         render: {
           visible: false
         }
@@ -25289,7 +25292,12 @@ class MindMap {
   renderEdges() {
     this.vertices.forEach(vertex => {
       vertex.edges.forEach(edge => {
-          const line = util.drawLineBetweenBodies(this.engine.render.context, edge.bodyA, edge.bodyB)
+          const outgoing = vertex.edges.filter(e => e.bodyB === edge.bodyB);
+          const incoming = edge.bodyB.edges.filter(e => e.bodyB === vertex);
+          const ratio = (1 + outgoing.indexOf(edge)) / outgoing.length; // 0 -> 1
+          const line = (incoming.length > 0 || outgoing.length > 1) ?
+            util.drawClockwiseLineBetweenBodies(this.engine.render.context, edge.bodyA, edge.bodyB, ratio, ratio) :
+            util.drawLineBetweenBodies(this.engine.render.context, edge.bodyA, edge.bodyB)
           const angle = Vector.angle(line.a, line.b);
           const arrow =
             Vertices.translate(
@@ -25347,12 +25355,16 @@ document.addEventListener('DOMContentLoaded', () => {
   let ripple = graph.addVertex(T.label, "software", T.id, 5, "name", "ripple", "lang", "java");
   let peter = graph.addVertex(T.label, "person", T.id, 6, "name", "peter", "age", 35);
   marko.addEdge("knows", vadas, T.id, 7, "weight", 0.5);
+  vadas.addEdge("knows", marko, T.id, 13, "weight", 0.5);
+  vadas.addEdge("knows", marko, T.id, 14, "weight", 0.5);
+  vadas.addEdge("knows", marko, T.id, 15, "weight", 0.5);
   marko.addEdge("knows", josh, T.id, 8, "weight", 1.0);
   marko.addEdge("created", lop, T.id, 9, "weight", 0.4);
   josh.addEdge("created", ripple, T.id, 10, "weight", 1.0);
   josh.addEdge("created", lop, T.id, 11, "weight", 0.4);
+  josh.addEdge("created", lop, T.id, 16, "weight", 0.4);
   peter.addEdge("created", lop, T.id, 12, "weight", 0.2);
-
+  ripple.addEdge("knows", josh, T.id, 17, "weight", 0.3);
   graph.run();
 })
 
@@ -25421,6 +25433,52 @@ function drawLineBetweenBodies(context, body1, body2) {
   context.moveTo(seg.a.x, seg.a.y);
   context.lineTo(seg.b.x, seg.b.y);
   context.stroke();
+  return seg;
+}
+
+function drawClockwiseLineBetweenBodies(context, body1, body2, ratio1, ratio2) {
+  // Unit vector direction between bodies
+  const normal = Vector.normalise(Vector.sub(body2.position, body1.position));
+
+  const boundsA = Bounds.create(body1.vertices);
+  const boundsB = Bounds.create(body2.vertices);
+
+  const radiusA = Math.min(boundsA.max.x - boundsA.min.x, boundsA.max.y - boundsA.min.y) / 2;
+  const radiusB = Math.min(boundsB.max.x - boundsB.min.x, boundsB.max.y - boundsB.min.y) / 2;
+
+  const guideA = Vector.add(body1.position, Vector.mult(Vector.rotate(normal, Math.PI / 2), radiusA * ratio1));
+  const guideB = Vector.add(body2.position, Vector.mult(Vector.rotate(normal, Math.PI / 2), radiusB * ratio2));
+
+  // // Point far outside of each shape at 90 degree angle to normal used to determine intersection
+  // const rayVectorA = Vector.add(body1.position, Vector.mult(Vector.rotate(normal, Math.PI / 2), 100000));
+  // const rayVectorB = Vector.add(body2.position, Vector.mult(Vector.rotate(normal, Math.PI / 2), 100000));
+
+  // // Intersection of ray with shape
+  // const intersectA = pointOnShapeClosestToVector(body1.position, body1.vertices, rayVectorA);
+  // const intersectB = pointOnShapeClosestToVector(body2.position, body2.vertices, rayVectorB);
+
+  // // Partial vector from center of body to edge.
+  // const guideA = Vector.add(body1.position, Vector.mult(Vector.sub(intersectA, body1.position), ratio1))
+  // const guideB = Vector.add(body2.position, Vector.mult(Vector.sub(intersectB, body2.position), ratio2));
+
+  const seg = segmentBetweenShapes(guideA, body1.vertices, guideB, body2.vertices);
+  // TODO: Separate side-effects
+
+  context.beginPath();
+  context.moveTo(seg.a.x, seg.a.y);
+  context.lineTo(seg.b.x, seg.b.y);
+  context.stroke();
+
+  // context.beginPath();
+  // context.moveTo(body1.position.x, body1.position.y);
+  // context.lineTo(guideA.x, guideA.y);
+  // context.stroke();
+  //
+  // context.beginPath();
+  // context.moveTo(body2.position.x, body2.position.y);
+  // context.lineTo(guideB.x, guideB.y);
+  // context.stroke();
+
   return seg;
 }
 
@@ -25570,5 +25628,6 @@ module.exports.readArguments = readArguments;
 module.exports.setFontFillSize = setFontFillSize;
 module.exports.shapeToSegments = shapeToSegments;
 module.exports.segmentBetweenShapes = segmentBetweenShapes;
+module.exports.drawClockwiseLineBetweenBodies = drawClockwiseLineBetweenBodies;
 
 },{"matter-js":29}]},{},[32]);
