@@ -190,7 +190,7 @@ class MindMap {
           const line = (incoming.length > 0 || outgoing.length > 1) ?
             util.drawClockwiseLineBetweenBodies(this.engine.render.context, edge.bodyA, edge.bodyB, ratio, ratio) :
             util.drawLineBetweenBodies(this.engine.render.context, edge.bodyA, edge.bodyB)
-          const angle = Vector.angle(line.a, line.b);
+          const angle = Vector.angle(line.c || line.a, line.b);
           const arrow =
             Vertices.translate(
               Vertices.scale(

@@ -65,9 +65,10 @@ function drawLineBetweenBodies(context, body1, body2) {
   return seg;
 }
 
-function drawClockwiseLineBetweenBodies(context, body1, body2, ratio1, ratio2) {
+function drawClockwiseLineBetweenBodies(context, body1, body2, ratio1, ratio2, text) {
   // Unit vector direction between bodies
-  const normal = Vector.normalise(Vector.sub(body2.position, body1.position));
+  const entire = Vector.sub(body2.position, body1.position);
+  const normal = Vector.normalise(entire);
 
   const boundsA = Bounds.create(body1.vertices);
   const boundsB = Bounds.create(body2.vertices);
@@ -75,9 +76,17 @@ function drawClockwiseLineBetweenBodies(context, body1, body2, ratio1, ratio2) {
   const radiusA = Math.min(boundsA.max.x - boundsA.min.x, boundsA.max.y - boundsA.min.y) / 2;
   const radiusB = Math.min(boundsB.max.x - boundsB.min.x, boundsB.max.y - boundsB.min.y) / 2;
 
-  const guideA = Vector.add(body1.position, Vector.mult(Vector.rotate(normal, Math.PI / 2), radiusA * ratio1));
-  const guideB = Vector.add(body2.position, Vector.mult(Vector.rotate(normal, Math.PI / 2), radiusB * ratio2));
+  const ray = Vector.rotate(normal, Math.PI / 2);
 
+  const guideA = Vector.add(body1.position, Vector.mult(ray, radiusA * ratio1));
+  const guideB = Vector.add(body2.position, Vector.mult(ray, radiusB * ratio2));
+
+  const sub = Vector.sub(guideB, guideA);
+  const subNormal = Vector.normalise(sub);
+  const subRay = Vector.rotate(normal, Math.PI / 2);
+
+  const midpoint = Vector.add(guideA, Vector.mult(subNormal, Vector.magnitude(sub) / 2));
+  const controlPoint = Vector.add(Vector.mult(subRay, Vector.magnitude(sub) * (ratio1/2 + ratio2/2) * 0.2), midpoint)
   // // Point far outside of each shape at 90 degree angle to normal used to determine intersection
   // const rayVectorA = Vector.add(body1.position, Vector.mult(Vector.rotate(normal, Math.PI / 2), 100000));
   // const rayVectorB = Vector.add(body2.position, Vector.mult(Vector.rotate(normal, Math.PI / 2), 100000));
@@ -91,11 +100,13 @@ function drawClockwiseLineBetweenBodies(context, body1, body2, ratio1, ratio2) {
   // const guideB = Vector.add(body2.position, Vector.mult(Vector.sub(intersectB, body2.position), ratio2));
 
   const seg = segmentBetweenShapes(guideA, body1.vertices, guideB, body2.vertices);
+  seg.c = controlPoint;
   // TODO: Separate side-effects
 
   context.beginPath();
   context.moveTo(seg.a.x, seg.a.y);
-  context.lineTo(seg.b.x, seg.b.y);
+  //context.lineTo(seg.b.x, seg.b.y);
+  context.quadraticCurveTo(controlPoint.x, controlPoint.y, seg.b.x, seg.b.y);
   context.stroke();
 
   // context.beginPath();
